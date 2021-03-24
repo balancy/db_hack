@@ -1,15 +1,30 @@
 from random import choice
 
-from datacenter.models import Chastisement, Schoolkid, Mark, Commendation, Lesson, Subject
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+
+from datacenter.models import Chastisement, Commendation, Lesson, \
+    Mark, Schoolkid, Subject
 
 
-commendations = ['Молодец!', 'Отлично!', 'Хорошо!', 'Гораздо лучше, чем я ожидал!', 'Приятно удивил!', 'Хвалю',
-                 'Великолепно!', 'Прекрасно!', 'Очень обрадовал!', 'Сказано здорово – просто и ясно!',
-                 'Как всегда, точен!', 'Очень хороший ответ!', 'Талантливо!']
+commendations = ['Молодец!',
+                 'Отлично!',
+                 'Хорошо!',
+                 'Гораздо лучше, чем я ожидал!',
+                 'Приятно удивил!',
+                 'Хвалю',
+                 'Великолепно!',
+                 'Прекрасно!',
+                 'Очень обрадовал!',
+                 'Сказано здорово – просто и ясно!',
+                 'Как всегда, точен!',
+                 'Очень хороший ответ!',
+                 'Талантливо!',
+                 ]
 
 
 def get_schoolkid_by_name(name):
-    """Gets schoolkid by name. If finds only one, returns it. If doesn't find, return None.
+    """Gets schoolkid by name. If finds only one, returns it.
+    If doesn't find, return None.
 
     :param name: name of schoolkid to search
     """
@@ -18,15 +33,16 @@ def get_schoolkid_by_name(name):
         print("Не указано имя. Исправьте.")
         return
 
-    all_schollkids_with_name = Schoolkid.objects.filter(full_name__contains=name)
-    if len(all_schollkids_with_name) > 1:
-        print("Слишком много школьников с таким именем. Уточните имя.")
-        return
-    if not all_schollkids_with_name:
+    try:
+        schoolkid = Schoolkid.objects.get(full_name__contains=name)
+    except ObjectDoesNotExist:
         print("Не нахожу учеников с таким именем. Попробуйте другое имя.")
         return
+    except MultipleObjectsReturned:
+        print("Слишком много школьников с таким именем. Уточните имя.")
+        return
 
-    return all_schollkids_with_name.first()
+    return schoolkid
 
 
 def fix_marks(schoolkid):
@@ -58,10 +74,20 @@ def create_commendation(schoolkid, subject_title):
     :param subject_title: title of subject
     """
 
-    subject = Subject.objects.get(title=subject_title, year_of_study=schoolkid.year_of_study, group_letter=schoolkid.group_letter)
-    if not subject:
-        print("Не нахожу предмета с таким названием для этого ученика. Проверьте написание.")
-    last_lesson = Lesson.objects.filter(year_of_study=schoolkid.year_of_study, group_letter=schoolkid.group_letter,
+    try:
+        subject = Subject.objects.get(title=subject_title.title(),
+                                      year_of_study=schoolkid.year_of_study)
+    except ObjectDoesNotExist:
+        print("Не нахожу предмета с таким названием для этого ученика. "
+              "Проверьте написание.")
+        return
+
+    last_lesson = Lesson.objects.filter(year_of_study=schoolkid.year_of_study,
+                                        group_letter=schoolkid.group_letter,
                                         subject=subject).last()
-    Commendation.objects.create(text=choice(commendations), created=last_lesson.date, schoolkid=schoolkid,
-                                subject=subject, teacher=last_lesson.teacher)
+
+    Commendation.objects.create(text=choice(commendations),
+                                created=last_lesson.date,
+                                schoolkid=schoolkid,
+                                subject=subject,
+                                teacher=last_lesson.teacher)
